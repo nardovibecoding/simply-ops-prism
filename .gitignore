@@ -1,0 +1,16 @@
+.DS_Store
+*.pyc
+__pycache__/
+.venv/
+venv/
+node_modules/
+.env
+.env.local
+*.log
+.cache/
+inbox/
+.simply-ops-prism.env
+*.swp
+.idea/
+.vscode/
+.publish/

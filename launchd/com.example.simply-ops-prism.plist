@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  simply-ops-prism LaunchAgent — fires the 6-producer chain daily at 14:00 local.
+
+  Customize:
+    1. Replace `com.example.` with your own reverse-DNS prefix (matches Label).
+    2. Replace `/Users/USERNAME/` with your actual $HOME (sed -i '' "s|/Users/USERNAME/|$HOME/|g" *.plist).
+    3. Adjust Hour/Minute to your preferred schedule.
+    4. cp this file to ~/Library/LaunchAgents/ and `launchctl load` it.
+
+  Race-condition note: this is the SINGLE timer. The 6 daemons + collector run
+  sequentially inside run_parallel.sh — DO NOT add separate timers for collector
+  or rsync (re-introduces the race that motivated this template).
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.example.simply-ops-prism</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/USERNAME/path/to/simply-ops-prism/run_parallel.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>14</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/simply-ops-prism.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/simply-ops-prism.err</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>PRISM_TZ</key>
+        <string>UTC</string>
+    </dict>
+</dict>
+</plist>
