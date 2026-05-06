@@ -1,6 +1,6 @@
 #!/bin/bash
 # run_parallel.sh — fire all 6 producer daemons in parallel, then assemble bundle.
-# Local single-host pipeline (no VPS sync). For multi-host, fork and add rsync step.
+# Local by default. For multi-host, gather remote summaries before collector runs.
 #
 # Daemons (canonical order, matches daemons/_lib/collector.py:_DAEMONS):
 #   lint → security → performance → gaps → upgrade → debug
@@ -76,9 +76,11 @@ wait
 log "=== all daemons done ==="
 log "summaries: $(ls "$PENDING" 2>/dev/null | tr '\n' ' ')"
 
-# Step 2/3: assemble bundle (no VPS rsync — local-only template).
+# Step 2/3: assemble bundle. If you run multiple hosts, copy their pending
+# summaries into $INBOX/_summaries/pending/$DATE before this point.
 log "=== [2/3] collector start ==="
-if python3 "$HERE/daemons/_lib/collector.py" --watch --once --min 6 --grace-min 0 >> "$LOG" 2>&1; then
+MIN_SUMMARIES="${PRISM_MIN_SUMMARIES:-6}"
+if python3 "$HERE/daemons/_lib/collector.py" --watch --once --min "$MIN_SUMMARIES" --grace-min 0 >> "$LOG" 2>&1; then
     log "=== [2/3] collector done OK ==="
 else
     log "=== [2/3] collector exit=$? — see log ==="

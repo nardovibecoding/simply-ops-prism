@@ -8,7 +8,7 @@ import argparse, sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "_lib"))
-from daemon_template import write_summary, write_heartbeat, _detect_host
+from daemon_template import build_summary, write_summary, write_heartbeat, _detect_host
 
 DAEMON = "lint"
 LOOKING_FOR = {
@@ -27,12 +27,12 @@ def main():
 
     host = _detect_host()
     findings: list[dict] = []  # populate by running detectors
-    summary = {
-        "looking_for": LOOKING_FOR,
-        "findings_count": len(findings),
-        "proposed_actions": [],
-        "self_report": {"daemon_health": "green", "dry_run": args.dry_run},
-    }
+    summary = build_summary(
+        DAEMON,
+        LOOKING_FOR,
+        findings,
+        {"daemon_health": "green", "dry_run": args.dry_run},
+    )
     write_summary(DAEMON, host, summary)
     write_heartbeat(DAEMON, host, "ok", errors=[])
     print(f"[{DAEMON}] cycle done | findings={len(findings)}")

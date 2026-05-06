@@ -8,7 +8,7 @@
 curl -fsSL https://raw.githubusercontent.com/nardovibecoding/simply-ops-prism/main/install.sh | bash
 ```
 
-After: six daemons (lint, security, performance, gaps, upgrade, debug) fire in parallel once a day, write findings into your local inbox, and a collector assembles one bundle you read on coffee. One orchestrator chain — no race conditions between timers, no brief sprawl, no silent failures.
+After: six daemons (lint, security, performance, gaps, upgrade, debug) fire in parallel once a day, write findings into your local inbox, and a collector assembles one bundle you read on coffee. One orchestrator chain, one host x daemon matrix, one ranked action queue.
 
 **Platform**: macOS + Linux. Requires Python 3.10+. LaunchAgent integration is
 macOS-only; Linux users can wire the same `run_parallel.sh` to a `systemd --user`
@@ -32,6 +32,11 @@ The point is the **pipeline shape**:
 
 - **One timer, not three.** No coincidence-scheduling between rsync,
   collector, and producers. One chain, no race window.
+- **One finding contract.** Every daemon uses the same fields: evidence,
+  affected surface, priority, confidence, suggested next skill, and
+  carry-forward.
+- **One matrix.** The bundle shows each host and each daemon as ready or
+  missing, with counts and top priority.
 - **Bundles consume → briefs auto-archive.** No 300-file inbox by Friday.
 - **Heartbeats + done-marker.** Silent failures show up loud the next morning.
 
@@ -103,9 +108,48 @@ simply-ops-prism/
 | timezone | `PRISM_TZ` env in plist or `~/.simply-ops-prism.env` | `UTC` |
 | daemon detectors | `daemons/<daemon>/detectors/*.py` | empty stubs |
 | host name | `PRISM_HOST` env, else `Path.home().name` | (your username) |
+| collector hosts | `PRISM_HOSTS=mac,hel,london` on the collector host | current host only |
 | inbox root | `PRISM_INBOX` env (used by smoke test for sandbox) | `~/inbox` |
 | cache + log dir | `PRISM_TMPDIR` env (used by smoke test for sandbox) | `~/.cache/simply-ops-prism` |
-| min summaries to bundle | `--min N` flag on collector | 6 |
+| min summaries to bundle | `PRISM_MIN_SUMMARIES` or `--min N` flag on collector | 6 |
+
+## Finding schema
+
+Detector modules should return plain dictionaries. The daemon helper normalizes
+them into this public contract:
+
+```json
+{
+  "id": "security:ssh-policy:password-login-enabled",
+  "title": "Password login is enabled",
+  "description": "Short explanation of what changed or why it matters.",
+  "affected_surface": "ssh",
+  "priority": "P1",
+  "confidence": "high",
+  "suggested_next_skill": "security",
+  "evidence": ["config:sshd_config"],
+  "carry_forward": true,
+  "status": "open"
+}
+```
+
+The collector adds:
+
+- `finding_lifecycle`: new, recurring, resolved, regressed, carried-forward.
+- `matrix`: host x daemon readiness and top priority.
+- `action_queue`: ranked next actions, grouped across every daemon and host.
+
+Routing is intentionally generic:
+
+| Finding type | Suggested next skill |
+|---|---|
+| unclear root cause, blocked command, drift | `debug` |
+| secrets, permissions, risky automation | `security` |
+| slow scan, cost, queue pressure | `performance` |
+| stale docs, schema drift, broken references | `lint` |
+| better process or detector opportunity | `upskill` |
+| concrete accepted file change | `ship` |
+| missing coverage, contradictions, unowned item | `gaps` |
 
 ---
 
@@ -122,11 +166,16 @@ the `run_parallel.sh` chain — never to a separate timer.
 
 ## Multi-host
 
-For multi-host (Mac + N VPS): fork the template, override `_HOSTS` in
-`daemons/_lib/collector.py`, add an `rsync` step in `run_parallel.sh` BEFORE the
-collector call. Your VPS-side daemons write to their own `~/inbox/_summaries/
-pending/<DATE>/` and rsync syncs them to the orchestrator host. The
-orchestrator's bundle then has all 6 × N hosts.
+For multi-host (laptop + servers): set `PRISM_HOST=<name>` on each producer
+host, set `PRISM_HOSTS=laptop,server1,server2` on the collector host, and copy
+remote pending summaries into the collector inbox before the collector step in
+`run_parallel.sh`.
+
+Your final bundle then has all `6 x N` host entries. If one host misses a day,
+the matrix shows that gap and prior unresolved findings can carry forward.
+
+This repo keeps the transport generic on purpose. Use whichever copy method is
+normal for your environment, then keep the collector contract stable.
 
 ---
 
