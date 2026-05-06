@@ -1,0 +1,61 @@
+{
+  "schema_version": "prism.coverage.v1",
+  "description": "Public-safe starter matrix for producer -> artifact/state -> expected daemon -> proof coverage. Customize rows for your own stack.",
+  "defaults": {
+    "heartbeat_max_age_hours": 36
+  },
+  "surfaces": [
+    {
+      "surface": "prism_orchestrator",
+      "producer": "LaunchAgent, systemd timer, cron, or manual operator",
+      "artifact_state": "{repo}/run_parallel.sh",
+      "expected_daemon": "run_parallel.sh",
+      "proof_source": "path_exists:{repo}/run_parallel.sh",
+      "failure_markers": ["missing orchestrator"],
+      "protected": false,
+      "action": "Keep one orchestrator chain. Do not split producers and collector into separate timers.",
+      "checks": [
+        {"type": "path_exists", "path": "{repo}/run_parallel.sh"}
+      ]
+    },
+    {
+      "surface": "prism_pending_summaries",
+      "producer": "lint, security, performance, gaps, upgrade, debug",
+      "artifact_state": "{inbox}/_summaries/pending/{date}",
+      "expected_daemon": "producer daemons via daemon_template.write_summary",
+      "proof_source": "dir_exists:{inbox}/_summaries/pending",
+      "failure_markers": ["missing pending summary directory"],
+      "protected": false,
+      "action": "Create the pending summary directory before producer daemons run.",
+      "checks": [
+        {"type": "dir_exists", "path": "{inbox}/_summaries/pending"}
+      ]
+    },
+    {
+      "surface": "prism_heartbeats",
+      "producer": "producer daemons",
+      "artifact_state": "{inbox}/_heartbeat",
+      "expected_daemon": "daemon_template.write_heartbeat",
+      "proof_source": "dir_exists:{inbox}/_heartbeat",
+      "failure_markers": ["missing heartbeat directory"],
+      "protected": false,
+      "action": "Every producer should write a heartbeat so silent failures become visible.",
+      "checks": [
+        {"type": "dir_exists", "path": "{inbox}/_heartbeat"}
+      ]
+    },
+    {
+      "surface": "prism_cache_log",
+      "producer": "run_parallel.sh",
+      "artifact_state": "{cache}",
+      "expected_daemon": "run_parallel.sh",
+      "proof_source": "dir_exists:{cache}",
+      "failure_markers": ["missing cache/log directory"],
+      "protected": false,
+      "action": "Keep logs and done-markers in a rebuildable cache path, not inside source control.",
+      "checks": [
+        {"type": "dir_exists", "path": "{cache}"}
+      ]
+    }
+  ]
+}

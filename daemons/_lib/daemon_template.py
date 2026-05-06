@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import importlib.util
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -111,6 +112,40 @@ def build_proposed_actions(daemon: str, findings: list[dict[str, Any]]) -> list[
             "source_daemon": daemon,
         })
     return actions
+
+
+def run_detector_modules(daemon_dir: Path) -> tuple[list[dict[str, Any]], list[str]]:
+    """
+    Run detector modules from <daemon>/detectors/.
+
+    A detector is any .py file with a run() function returning a list of finding
+    dictionaries. Detectors must be read-only by default; they should report
+    coverage gaps, drift, or risk, not mutate the system.
+    """
+    detector_dir = daemon_dir / "detectors"
+    findings: list[dict[str, Any]] = []
+    errors: list[str] = []
+    if not detector_dir.exists():
+        return findings, errors
+
+    for path in sorted(detector_dir.glob("*.py")):
+        if path.name.startswith("_"):
+            continue
+        try:
+            spec = importlib.util.spec_from_file_location(path.stem, path)
+            if spec is None or spec.loader is None:
+                raise RuntimeError("cannot load module spec")
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            run = getattr(mod, "run", None)
+            if not callable(run):
+                continue
+            result = run()
+            if isinstance(result, list):
+                findings.extend(item for item in result if isinstance(item, dict))
+        except Exception as exc:
+            errors.append(f"{path.name}: {type(exc).__name__}: {exc}")
+    return findings, errors
 
 
 def build_summary(

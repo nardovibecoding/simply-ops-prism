@@ -37,6 +37,9 @@ The point is the **pipeline shape**:
   carry-forward.
 - **One matrix.** The bundle shows each host and each daemon as ready or
   missing, with counts and top priority.
+- **One coverage contract.** Important surfaces declare producer →
+  artifact/state → expected daemon → proof source, so "cleanup exists" means
+  verified wiring, not a hopeful note in a README.
 - **Bundles consume → briefs auto-archive.** No 300-file inbox by Friday.
 - **Heartbeats + done-marker.** Silent failures show up loud the next morning.
 
@@ -85,6 +88,8 @@ python3 daemons/_lib/collector.py --consume <bundle_id>
 simply-ops-prism/
 ├── run_parallel.sh             # orchestrator — 6 daemons → collector → done-marker
 ├── install.sh                  # idempotent installer
+├── config/
+│   └── coverage_matrix.json    # producer → artifact → daemon → proof rows
 ├── daemons/
 │   ├── _lib/
 │   │   ├── collector.py        # bundles summaries, archives briefs on consume
@@ -107,6 +112,7 @@ simply-ops-prism/
 | schedule | `launchd/com.example.simply-ops-prism.plist` Hour/Minute | 14:00 |
 | timezone | `PRISM_TZ` env in plist or `~/.simply-ops-prism.env` | `UTC` |
 | daemon detectors | `daemons/<daemon>/detectors/*.py` | empty stubs |
+| coverage matrix | `config/coverage_matrix.json` or `PRISM_COVERAGE_MATRIX` | starter rows |
 | host name | `PRISM_HOST` env, else `Path.home().name` | (your username) |
 | collector hosts | `PRISM_HOSTS=mac,hel,london` on the collector host | current host only |
 | inbox root | `PRISM_INBOX` env (used by smoke test for sandbox) | `~/inbox` |
@@ -138,6 +144,30 @@ The collector adds:
 - `finding_lifecycle`: new, recurring, resolved, regressed, carried-forward.
 - `matrix`: host x daemon readiness and top priority.
 - `action_queue`: ranked next actions, grouped across every daemon and host.
+
+## Coverage matrix
+
+The included lint detector reads `config/coverage_matrix.json` and checks this
+contract for each operational surface:
+
+```json
+{
+  "surface": "prism_heartbeats",
+  "producer": "producer daemons",
+  "artifact_state": "{inbox}/_heartbeat",
+  "expected_daemon": "daemon_template.write_heartbeat",
+  "proof_source": "dir_exists:{inbox}/_heartbeat",
+  "failure_markers": ["missing heartbeat directory"],
+  "protected": false,
+  "action": "Every producer should write a heartbeat so silent failures become visible."
+}
+```
+
+The starter detector supports `path_exists`, `dir_exists`, and
+`heartbeat_fresh`. Add rows for anything that accumulates or can silently stop:
+logs, caches, summaries, backups, raw history, build artifacts, database
+vacuuming, or remote sync. Protected rows should stay report-only until a human
+approves backup and restore proof.
 
 Routing is intentionally generic:
 
