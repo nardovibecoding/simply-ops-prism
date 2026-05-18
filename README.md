@@ -56,8 +56,8 @@ bash install.sh
 The installer:
 - Creates `~/inbox/{_summaries,_heartbeat,critical,daily,weekly,archive}/`
 - Runs a smoke test (all 6 daemons fire in dry-run mode)
-- On macOS, drops a LaunchAgent template you can `launchctl load` to schedule
-  daily 14:00 fires
+- On macOS, skips LaunchAgent install by default. To install the timer:
+  `PRISM_INSTALL_LAUNCHAGENT=1 bash install.sh`
 
 ## Manual run
 
@@ -102,7 +102,9 @@ simply-ops-prism/
 │   └── debug_scan.py           # 6th producer, inline (no separate daemon)
 ├── launchd/
 │   └── com.example.simply-ops-prism.plist  # macOS LaunchAgent template
-└── examples/                   # detector examples (TBD)
+├── examples/                   # public-safe detector examples
+├── SECURITY.md                 # vulnerability/reporting policy
+└── DEPENDENCY_POLICY.md        # dependency and supply-chain posture
 ```
 
 ## Customization knobs
@@ -180,6 +182,40 @@ Routing is intentionally generic:
 | better process or detector opportunity | `upskill` |
 | concrete accepted file change | `ship` |
 | missing coverage, contradictions, unowned item | `gaps` |
+
+## Public safety posture
+
+This repo is a public template, not a mirror of a private ops stack.
+
+Included:
+
+- generic producer/collector code;
+- fake `com.example.*` LaunchAgent labels;
+- local-only smoke tests;
+- public detector examples;
+- standard finding and bundle schemas.
+
+Intentionally omitted from the private baseline:
+
+- real hostnames, IPs, remotes, and deploy paths;
+- private inboxes, logs, issue queues, telemetry, and review state;
+- OAuth, cookies, wallet, trading, bot, or session files;
+- private research archives, quarantines, and historical findings;
+- auto-publish, force-push, purge, or deploy automation.
+
+See `SECURITY.md` for reporting and secret-handling guidance. See
+`DEPENDENCY_POLICY.md` for dependency and supply-chain posture.
+
+## Public release posture
+
+Public updates should be reviewed releases, not blind syncs from a private
+system. A release candidate should pass:
+
+- privacy grep for private paths, hostnames, tokens, and workflow markers;
+- Gitleaks and TruffleHog scans;
+- sandbox smoke test through `install.sh`;
+- README/link review;
+- explicit human approval before any public push.
 
 ---
 

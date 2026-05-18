@@ -39,13 +39,16 @@ else
     exit 1
 fi
 
-# 3. Optionally install LaunchAgent (macOS only)
+# 3. Optionally install LaunchAgent (macOS only, opt-in to avoid surprise writes)
 if [[ "$(uname)" == "Darwin" ]]; then
     AGENT_SRC="$REPO_DIR/launchd/com.example.simply-ops-prism.plist"
     AGENT_DST="$HOME/Library/LaunchAgents/com.example.simply-ops-prism.plist"
     LABEL="com.example.simply-ops-prism"
 
-    if [[ -f "$AGENT_DST" ]]; then
+    if [[ "${PRISM_INSTALL_LAUNCHAGENT:-0}" != "1" ]]; then
+        echo "==> LaunchAgent install skipped"
+        echo "    To install later: PRISM_INSTALL_LAUNCHAGENT=1 bash $REPO_DIR/install.sh"
+    elif [[ -f "$AGENT_DST" ]]; then
         echo "==> LaunchAgent already installed at $AGENT_DST — skipping (run launchctl unload first to reinstall)"
     else
         mkdir -p "$(dirname "$AGENT_DST")"
@@ -67,9 +70,10 @@ cat <<EOF
 Next steps:
   1. Customize daemons/lint/detectors/, daemons/security/detectors/ etc with real logic.
   2. Run on demand:    bash $REPO_DIR/run_parallel.sh
-  3. View summaries:   ls $INBOX/_summaries/pending/\$(date +%Y-%m-%d)/
-  4. Read bundle:      cat $INBOX/_summaries/ready/\$(date +%Y-%m-%d)_bundle.json | python3 -m json.tool
-  5. Mark consumed:    python3 $REPO_DIR/daemons/_lib/collector.py --consume <bundle_id>
+  3. Install timer:     PRISM_INSTALL_LAUNCHAGENT=1 bash $REPO_DIR/install.sh
+  4. View summaries:   ls $INBOX/_summaries/pending/\$(date +%Y-%m-%d)/
+  5. Read bundle:      cat $INBOX/_summaries/ready/\$(date +%Y-%m-%d)_bundle.json | python3 -m json.tool
+  6. Mark consumed:    python3 $REPO_DIR/daemons/_lib/collector.py --consume <bundle_id>
 
 To uninstall:
   launchctl unload "$HOME/Library/LaunchAgents/com.example.simply-ops-prism.plist" 2>/dev/null
